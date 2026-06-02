@@ -1,0 +1,26 @@
+# Cache do Python
+__pycache__/
+*.py[cod]
+
+# Ambiente virtual
+.venv/
+
+# Bancos de dados locais
+*.db
+*.sqlite3
+
+# Variáveis de ambiente
+.env
+
+# Editores
+.vscode/
+.idea/
+
+# macOS
+.DS_Store
+
+# Migrações geradas automaticamente pelo Alembic
+alembic/versions/*.py
+
+# Arquivo de lock (regenerado pelo Pipenv)
+Pipfile.lock
