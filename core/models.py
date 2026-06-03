@@ -17,6 +17,47 @@ from datetime import datetime
 from uuid import uuid4
 
 
+# ---------------------------------------------------------------------------
+# Funções auxiliares de validação (uso interno do módulo)
+# ---------------------------------------------------------------------------
+
+def _validate_required_string(value: str, field_name: str) -> None:
+    """Verifica que uma string obrigatória não está vazia após remover espaços."""
+    if not value or not value.strip():
+        raise ValueError(f"O campo '{field_name}' não pode ser vazio.")
+
+
+def _validate_score_range(value: float, field_name: str) -> None:
+    """Verifica que um score de similaridade ou plágio está no intervalo [0.0, 1.0]."""
+    if not (0.0 <= value <= 1.0):
+        raise ValueError(
+            f"O campo '{field_name}' deve estar entre 0.0 e 1.0, "
+            f"mas recebeu {value}."
+        )
+
+
+def _validate_positive_integer(value: int, field_name: str) -> None:
+    """Verifica que um número inteiro é estritamente positivo (maior que zero)."""
+    if value <= 0:
+        raise ValueError(
+            f"O campo '{field_name}' deve ser maior que zero, "
+            f"mas recebeu {value}."
+        )
+
+
+def _validate_non_negative_integer(value: int, field_name: str) -> None:
+    """Verifica que um número inteiro não é negativo (maior ou igual a zero)."""
+    if value < 0:
+        raise ValueError(
+            f"O campo '{field_name}' não pode ser negativo, "
+            f"mas recebeu {value}."
+        )
+
+
+# ---------------------------------------------------------------------------
+# Modelos de domínio
+# ---------------------------------------------------------------------------
+
 @dataclass
 class StudentClass:
     """Representa uma turma de alunos identificada pelo semestre e pelo curso."""
@@ -29,6 +70,11 @@ class StudentClass:
 
     # Nome do curso ao qual a turma pertence (ex: "Ciência da Computação")
     course: str
+
+    def __post_init__(self) -> None:
+        _validate_required_string(self.id, "id")
+        _validate_required_string(self.semester, "semester")
+        _validate_required_string(self.course, "course")
 
 
 @dataclass
@@ -46,6 +92,12 @@ class Student:
 
     # FK para StudentClass — turma à qual o aluno pertence
     class_id: str
+
+    def __post_init__(self) -> None:
+        _validate_required_string(self.id, "id")
+        _validate_required_string(self.full_name, "full_name")
+        _validate_required_string(self.dikastis_username, "dikastis_username")
+        _validate_required_string(self.class_id, "class_id")
 
 
 @dataclass
@@ -70,6 +122,15 @@ class AssignmentList:
 
     # Semestre em que a lista foi aplicada (ex: "2025.1")
     semester: str
+
+    def __post_init__(self) -> None:
+        _validate_required_string(self.id, "id")
+        _validate_required_string(self.semester, "semester")
+        if not (1 <= self.number <= 6):
+            raise ValueError(
+                f"O campo 'number' deve estar entre 1 e 6, "
+                f"mas recebeu {self.number}."
+            )
 
 
 @dataclass
@@ -97,6 +158,15 @@ class Question:
     # Especificação do output esperado pelo programa
     output_spec: str
 
+    def __post_init__(self) -> None:
+        _validate_required_string(self.id, "id")
+        _validate_required_string(self.assignment_list_id, "assignment_list_id")
+        _validate_positive_integer(self.number, "number")
+        _validate_required_string(self.title, "title")
+        _validate_required_string(self.statement, "statement")
+        _validate_required_string(self.input_spec, "input_spec")
+        _validate_required_string(self.output_spec, "output_spec")
+
 
 @dataclass
 class Submission:
@@ -119,6 +189,11 @@ class Submission:
 
     # Indica se a submissão foi aprovada nos testes automatizados
     approved: bool = False
+
+    def __post_init__(self) -> None:
+        _validate_required_string(self.student_id, "student_id")
+        _validate_required_string(self.question_id, "question_id")
+        _validate_required_string(self.storage_path, "storage_path")
 
 
 @dataclass
@@ -152,6 +227,20 @@ class SimilarFragment:
     # Identificador único autogerado pelo CInspect
     id: str = field(default_factory=lambda: str(uuid4()))
 
+    def __post_init__(self) -> None:
+        _validate_required_string(self.plagiarism_result_id, "plagiarism_result_id")
+        _validate_required_string(self.source_submission_id, "source_submission_id")
+        _validate_required_string(self.target_submission_id, "target_submission_id")
+        _validate_required_string(self.source_fragment, "source_fragment")
+        _validate_required_string(self.target_fragment, "target_fragment")
+        _validate_score_range(self.similarity_score, "similarity_score")
+        _validate_positive_integer(self.start_line, "start_line")
+        if self.end_line < self.start_line:
+            raise ValueError(
+                f"O campo 'end_line' ({self.end_line}) deve ser maior ou igual "
+                f"a 'start_line' ({self.start_line})."
+            )
+
 
 @dataclass
 class PlagiarismResult:
@@ -174,3 +263,8 @@ class PlagiarismResult:
 
     # Lista de trechos suspeitos encontrados durante a análise
     similar_fragments: list[SimilarFragment] = field(default_factory=list)
+
+    def __post_init__(self) -> None:
+        _validate_required_string(self.submission_id, "submission_id")
+        _validate_score_range(self.overall_score, "overall_score")
+        _validate_non_negative_integer(self.checked_against, "checked_against")
