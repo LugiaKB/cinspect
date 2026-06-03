@@ -1,7 +1,12 @@
 # Modelos de dados base do CInspect.
-# Define as estruturas centrais usadas em todo o sistema: listas de exercícios,
-# questões, turmas, submissões de código, trechos similares detectados e
-# resultados de verificação de plágio.
+# Define as estruturas centrais do domínio: turmas, alunos, listas de exercícios,
+# questões, submissões de código, trechos similares detectados e resultados de
+# verificação de plágio.
+#
+# Convenção de IDs:
+#   - Entidades sincronizadas com o Dikastis usam ULIDs externos (str obrigatório).
+#   - Entidades criadas pelo CInspect usam UUIDs gerados automaticamente.
+#
 # Utiliza apenas a biblioteca padrão do Python (dataclasses, uuid, datetime).
 
 from dataclasses import dataclass, field
@@ -10,87 +15,114 @@ from uuid import uuid4
 
 
 @dataclass
-class AssignmentList:
-    """Representa uma lista de exercícios de uma disciplina em um semestre."""
+class StudentClass:
+    """Representa uma turma de alunos identificada pelo semestre e pelo curso."""
 
-    # Nome ou título da lista (ex: "Lista 1", "Lista de Recursão")
-    name: str
+    # ULID vindo do Dikastis — identificador externo da turma
+    id: str
 
-    # Semestre ao qual a lista pertence (ex: "2024.1", "2025.2")
+    # Semestre da turma (ex: "2025.1", "2025.2")
     semester: str
 
-    # Identificador único gerado automaticamente
-    id: str = field(default_factory=lambda: str(uuid4()))
+    # Nome do curso ao qual a turma pertence (ex: "Ciência da Computação")
+    course: str
 
-    # Timestamp de criação da lista no sistema
-    created_at: datetime = field(default_factory=datetime.now)
+
+@dataclass
+class Student:
+    """Representa um aluno vinculado a uma turma."""
+
+    # ULID vindo do Dikastis — identificador externo do aluno
+    id: str
+
+    # Nome completo do aluno
+    full_name: str
+
+    # Username do aluno no Dikastis
+    dikastis_username: str
+
+    # FK para StudentClass — turma à qual o aluno pertence
+    class_id: str
+
+
+@dataclass
+class AssignmentList:
+    """Representa uma lista de exercícios aplicada em um semestre.
+
+    O semestre é a chave de ligação com StudentClass: todas as turmas de um mesmo
+    semestre compartilham as mesmas listas de exercícios.
+    """
+
+    # ULID vindo do Dikastis — identificador externo da lista
+    id: str
+
+    # Número da lista dentro do semestre (1 a 6):
+    #   1 = Condicionais
+    #   2 = Loops
+    #   3 = Listas
+    #   4 = Funções
+    #   5 = Recursão
+    #   6 = Dicionários e Tuplas
+    number: int
+
+    # Semestre em que a lista foi aplicada (ex: "2025.1")
+    semester: str
 
 
 @dataclass
 class Question:
     """Representa uma questão individual pertencente a uma lista de exercícios."""
 
-    # ID da lista de exercícios à qual esta questão pertence
+    # ULID vindo do Dikastis — identificador externo da questão
+    id: str
+
+    # FK para AssignmentList — lista à qual esta questão pertence
     assignment_list_id: str
 
-    # Número da questão dentro da lista (ex: 1, 2, 3...)
-    number: int
+    # Enunciado completo da questão
+    statement: str
 
-    # Título ou enunciado resumido da questão
-    title: str
+    # Especificação do input esperado pelo programa
+    input_spec: str
 
-    # Identificador único gerado automaticamente
-    id: str = field(default_factory=lambda: str(uuid4()))
-
-
-@dataclass
-class StudentClass:
-    """Representa uma turma de alunos, identificada pelo semestre e pelo curso."""
-
-    # Semestre da turma (ex: "2024.1", "2025.2")
-    semester: str
-
-    # Nome do curso ao qual a turma pertence (ex: "Ciência da Computação")
-    course: str
-
-    # Identificador único gerado automaticamente
-    id: str = field(default_factory=lambda: str(uuid4()))
+    # Especificação do output esperado pelo programa
+    output_spec: str
 
 
 @dataclass
 class Submission:
     """Representa uma submissão de código feita por um aluno para uma questão específica."""
 
-    # Identificador do autor (ex: matrícula do aluno)
-    author: str
+    # FK para Student — aluno que realizou a submissão
+    student_id: str
 
-    # Conteúdo do código submetido
-    content: str
-
-    # Nome do arquivo original enviado pelo aluno
-    filename: str
-
-    # ID da questão à qual esta submissão responde
+    # FK para Question — questão à qual esta submissão responde
     question_id: str
 
-    # ID da turma do aluno que realizou a submissão
-    class_id: str
+    # Caminho do arquivo de código no disco ou no object storage
+    storage_path: str
 
-    # Identificador único gerado automaticamente
+    # Identificador único autogerado pelo CInspect
     id: str = field(default_factory=lambda: str(uuid4()))
 
     # Timestamp da submissão gerado automaticamente no momento da criação
     submitted_at: datetime = field(default_factory=datetime.now)
+
+    # Indica se a submissão foi aprovada nos testes automatizados
+    approved: bool = False
 
 
 @dataclass
 class SimilarFragment:
     """Representa um trecho de código suspeito de ter sido copiado entre duas submissões."""
 
-    # ID da submissão de origem (onde o trecho foi encontrado originalmente)
+    # FK para PlagiarismResult — resultado ao qual este trecho pertence
+    plagiarism_result_id: str
+
+    # FK para Submission — submissão de origem (onde o trecho foi encontrado originalmente)
     source_submission_id: str
 
-    # ID da submissão alvo (onde o trecho suspeito foi detectado)
+    # FK para Submission — submissão alvo (onde o trecho suspeito foi detectado)
     target_submission_id: str
 
     # Trecho exato extraído da submissão de origem
@@ -105,22 +137,31 @@ class SimilarFragment:
     # Linha inicial do trecho na submissão alvo
     start_line: int
 
+    # Linha final do trecho na submissão alvo
+    end_line: int
+
+    # Identificador único autogerado pelo CInspect
+    id: str = field(default_factory=lambda: str(uuid4()))
+
 
 @dataclass
 class PlagiarismResult:
     """Representa o resultado completo de uma verificação de plágio para uma submissão."""
 
-    # ID da submissão que foi verificada
+    # FK para Submission — submissão que foi verificada
     submission_id: str
 
     # Score geral de plágio calculado para a submissão (0.0 a 1.0)
     overall_score: float
 
-    # Quantidade de submissões do mesmo corpus (mesma questão e turma) consultadas
+    # Quantidade de submissões do corpus consultadas durante a verificação
     checked_against: int
 
-    # Lista de trechos suspeitos encontrados durante a análise
-    similar_fragments: list[SimilarFragment] = field(default_factory=list)
+    # Identificador único autogerado pelo CInspect
+    id: str = field(default_factory=lambda: str(uuid4()))
 
     # Timestamp da verificação gerado automaticamente no momento da criação
     checked_at: datetime = field(default_factory=datetime.now)
+
+    # Lista de trechos suspeitos encontrados durante a análise
+    similar_fragments: list[SimilarFragment] = field(default_factory=list)
