@@ -1,13 +1,16 @@
 # Modelos de dados base do CInspect.
 # Define as estruturas centrais do domínio: turmas, alunos, listas de exercícios,
-# questões, submissões de código, trechos similares detectados e resultados de
-# verificação de plágio.
+# questões, submissões de código, trechos suspeitos e resultados de verificação
+# de plágio.
 #
 # Convenção de IDs:
-#   - Entidades sincronizadas com o Dikastis usam ULIDs externos (str obrigatório).
-#   - Entidades criadas pelo CInspect usam UUIDs gerados automaticamente.
+#   - Entidades sincronizadas com o Dikastis recebem ULIDs externos como str
+#     obrigatório (sem valor padrão).
+#   - Entidades criadas internamente pelo CInspect têm IDs gerados com uuid4.
 #
 # Utiliza apenas a biblioteca padrão do Python (dataclasses, uuid, datetime).
+
+from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -49,7 +52,7 @@ class Student:
 class AssignmentList:
     """Representa uma lista de exercícios aplicada em um semestre.
 
-    O semestre é a chave de ligação com StudentClass: todas as turmas de um mesmo
+    As listas pertencem ao semestre, não à turma: todas as turmas de um mesmo
     semestre compartilham as mesmas listas de exercícios.
     """
 
@@ -78,6 +81,12 @@ class Question:
 
     # FK para AssignmentList — lista à qual esta questão pertence
     assignment_list_id: str
+
+    # Número da questão dentro da lista (ex: 1, 2, 3...)
+    number: int
+
+    # Título curto da questão (ex: "Sequência de Fibonacci")
+    title: str
 
     # Enunciado completo da questão
     statement: str
